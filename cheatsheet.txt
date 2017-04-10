@@ -1,0 +1,58 @@
+cheatsheet for laravel broadcasting
+
+
+back-end
+=================================================================================
+
+composer require pusher/pusher-php-server
+uncomment Broadcast service provider from config/app.php file > providers
+added pusher credential inside .env file
+
+php artisan make:event MessagePosted
+//inside message posted class
+class MessagePosted implements ShouldBroadCast {
+  public $user;
+  public $message;
+  public function __construct(Message $message, User $user) {
+    $this->message = $message;
+    $this->user = $user;
+  }
+  public function broadcastOn() {
+    return new PresenceChannel('chatroom')
+  }
+}
+//inside Message controller
+class Message extends Model {
+  public function store (Request $r) {
+    $message = auth()->user()->message()->create(['text' => $r->get('text')])
+    event(new MessagePosted($message, auth()->user()))
+              OR
+    broadcast(new MessagePosted($message, auth()->user()))->toOthers() //toOthers only support in broadcast method. so broadcast will be good
+  }
+}
+//inside routes/channels
+Broadcast::channel('chatroom', function ($user) {
+  return $user;
+});
+be careful about broadcast::channel function, 
+it requires 2 arguments, channel_name and callback.
+In callback passed argument must be used inside function other wise broadcast/auth not working  
+
+front-end
+=================================================================================
+npm install --save laravel-echo pusher-js
+uncomment Echo file bootstrap.js file
+now in vue root app.js file  listen for event
+Echo.join('<chatroom>')
+.here(users => {
+  this.users = users
+})
+.joining(user => {
+  this.users push
+})
+.leaving(user => {
+  this.users remove
+})
+.listening('MessagePosted', e => {
+  console.log(e) //here e will public properties of "MessagePosted event class"
+})
